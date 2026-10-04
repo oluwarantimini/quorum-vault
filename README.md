@@ -86,6 +86,29 @@ stellar contract invoke --id <VAULT> --source alice --network testnet -- \
   --expires_at 1767225600
 ```
 
+## Web app
+
+![Quorum Vault web app](docs/assets/web-app.png)
+
+A treasury dashboard for any Quorum Vault, at `web/`:
+
+- **Vault overview**: the M-of-N policy, signers (yours highlighted) and live XLM holdings. Open any vault by id (`?vault=C…` links are shareable).
+- **Proposal board**: every proposal with its action in plain English, an approval meter counted against the *current* signers, expiry and status.
+- **Signer actions**: approve, withdraw approval, execute once the threshold is met, or cancel your own proposal.
+- **Composer**: propose a transfer (any asset), add or remove a signer, or change the threshold, with a deadline.
+- **Deploy your own vault**: deploys a fresh instance from the uploaded wasm and initializes your signer set, in two wallet confirmations.
+
+```bash
+cd web
+npm install
+npm run dev        # http://localhost:5173
+```
+
+It talks to the contract deployed on **Stellar testnet** and signs with
+[Freighter](https://www.freighter.app) (switch it to Testnet). Point it at
+another deployment with `VITE_CONTRACT_ID` (see `web/.env.example`).
+`netlify.toml` at the repo root deploys it as-is.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
