@@ -1,4 +1,4 @@
-# Multisig Vault
+# Quorum Vault
 
 **An M-of-N treasury for Stellar teams, DAOs and grant programs.**
 
