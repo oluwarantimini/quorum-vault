@@ -86,6 +86,12 @@ stellar contract invoke --id <VAULT> --source alice --network testnet -- \
   --expires_at 1767225600
 ```
 
+## Documentation
+
+- [Architecture](docs/architecture.md)
+- [Operating a vault](docs/operating-a-vault.md)
+- [Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Changelog](CHANGELOG.md)
+
 ## Glossary (new to Stellar?)
 
 - **Multisig (M-of-N)**: N people share control, and any M of them
