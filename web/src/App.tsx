@@ -24,7 +24,7 @@ export default function App() {
       <header className="border-b border-edge/70">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
-            <img src="/favicon.svg" className="h-8 w-8" alt="" />
+            <img src={`${import.meta.env.BASE_URL}favicon.svg`} className="h-8 w-8" alt="" />
             <div>
               <p className="font-semibold tracking-tight">Quorum Vault</p>
               <p className="text-xs text-mist">M-of-N treasury · Stellar testnet</p>
