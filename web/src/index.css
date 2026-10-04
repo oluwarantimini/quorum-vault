@@ -21,17 +21,21 @@ body {
   font-family: var(--font-sans);
   min-height: 100vh;
 }
-.panel { background: var(--color-panel); border: 1px solid var(--color-edge); border-radius: 14px; }
-.field {
-  width: 100%; background: var(--color-deep); border: 1px solid var(--color-edge); border-radius: 10px;
-  padding: 0.6rem 0.8rem; color: var(--color-snow); font-size: 0.9rem;
+
+/* In the components layer so Tailwind utilities (w-*, etc.) can override these. */
+@layer components {
+  .panel { background: var(--color-panel); border: 1px solid var(--color-edge); border-radius: 14px; }
+  .field {
+    width: 100%; background: var(--color-deep); border: 1px solid var(--color-edge); border-radius: 10px;
+    padding: 0.6rem 0.8rem; color: var(--color-snow); font-size: 0.9rem;
+  }
+  .field:focus { outline: 2px solid var(--color-volt); outline-offset: 0; }
+  .btn { border-radius: 10px; padding: 0.55rem 1rem; font-weight: 600; font-size: 0.85rem; transition: filter .15s; }
+  .btn:hover:not(:disabled) { filter: brightness(1.12); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-volt { background: var(--color-volt); color: #fff; }
+  .btn-pass { background: var(--color-pass); color: #062a1d; }
+  .btn-line { border: 1px solid var(--color-edge); color: var(--color-snow); }
+  .btn-fail { border: 1px solid #ff6b6b66; color: var(--color-fail); }
+  .label { font-size: 0.7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--color-mist); }
 }
-.field:focus { outline: 2px solid var(--color-volt); outline-offset: 0; }
-.btn { border-radius: 10px; padding: 0.55rem 1rem; font-weight: 600; font-size: 0.85rem; transition: filter .15s; }
-.btn:hover:not(:disabled) { filter: brightness(1.12); }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
-.btn-volt { background: var(--color-volt); color: #fff; }
-.btn-pass { background: var(--color-pass); color: #062a1d; }
-.btn-line { border: 1px solid var(--color-edge); color: var(--color-snow); }
-.btn-fail { border: 1px solid #ff6b6b66; color: var(--color-fail); }
-.label { font-size: 0.7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--color-mist); }
