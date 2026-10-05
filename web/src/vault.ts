@@ -3,7 +3,7 @@ import { addr, client, i128, u32, type Client } from "./lib/stellar";
 
 export const DEMO_VAULT = import.meta.env.VITE_VAULT_ID ?? "CDI2P43IUZ33F5HNHJO2BNEUT7FDMLVJI3BSI6XS4BXPWO3M4LYLDIVX";
 export const VAULT_WASM_HASH =
-  import.meta.env.VITE_VAULT_WASM_HASH ?? "a2ccf8d05d213c342926d12888fe6fba6d1b400ff577de7e3d050756bf0991ec";
+  import.meta.env.VITE_VAULT_WASM_HASH ?? "105493fa37b90c9ae76b83c305d2e8151f2a3abd942330ae223c801113cfc1e9";
 
 export const ERRORS: Record<number, string> = {
   1: "This vault is already initialized.",
@@ -52,12 +52,32 @@ export function actionScVal(a: Action): xdr.ScVal {
   }
 }
 
-/** Proposal ids are sequential; read until the first missing one (capped). */
-export async function loadProposals(c: Client, max = 60): Promise<Proposal[]> {
+const getProposal = (c: Client, id: number) =>
+  c.read<Proposal>("get_proposal", [xdr.ScVal.scvU64(new xdr.Uint64(BigInt(id)))]);
+
+/**
+ * Newest first. Vaults with `proposal_count` are loaded in parallel batches;
+ * older deployments without it fall back to probing ids until the first gap.
+ */
+export async function loadProposals(c: Client, batch = 10): Promise<Proposal[]> {
+  let count: number | null = null;
+  try {
+    count = Number(await c.read<bigint>("proposal_count"));
+  } catch {
+    count = null;
+  }
   const out: Proposal[] = [];
-  for (let id = 1; id <= max; id++) {
+  if (count !== null) {
+    for (let start = 1; start <= count; start += batch) {
+      const ids = Array.from({ length: Math.min(batch, count - start + 1) }, (_, i) => start + i);
+      const got = await Promise.allSettled(ids.map((id) => getProposal(c, id)));
+      for (const r of got) if (r.status === "fulfilled") out.push(r.value);
+    }
+    return out.reverse();
+  }
+  for (let id = 1; ; id++) {
     try {
-      out.push(await c.read<Proposal>("get_proposal", [xdr.ScVal.scvU64(new xdr.Uint64(BigInt(id)))]));
+      out.push(await getProposal(c, id));
     } catch {
       break;
     }

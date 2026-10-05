@@ -21,22 +21,24 @@ struct Setup<'a> {
 fn setup<'a>() -> Setup<'a> {
     let env = Env::default();
     env.mock_all_auths();
-    let id = env.register(MultisigVault, ());
-    let vault = MultisigVaultClient::new(&env, &id);
     let signers = [
         Address::generate(&env),
         Address::generate(&env),
         Address::generate(&env),
     ];
-    vault.init(
-        &vec![
-            &env,
-            signers[0].clone(),
-            signers[1].clone(),
-            signers[2].clone(),
-        ],
-        &2,
+    let id = env.register(
+        MultisigVault,
+        (
+            vec![
+                &env,
+                signers[0].clone(),
+                signers[1].clone(),
+                signers[2].clone(),
+            ],
+            2u32,
+        ),
     );
+    let vault = MultisigVaultClient::new(&env, &id);
 
     let token = env
         .register_stellar_asset_contract_v2(Address::generate(&env))
@@ -57,33 +59,35 @@ fn deadline(env: &Env) -> u64 {
 }
 
 #[test]
-fn init_validates_signers_and_threshold() {
+fn constructor_validates_signers_and_threshold() {
     let env = Env::default();
-    let vault = MultisigVaultClient::new(&env, &env.register(MultisigVault, ()));
     let a = Address::generate(&env);
+    assert_eq!(
+        validate_config(&Vec::new(&env), 1),
+        Err(Error::InvalidSigners)
+    );
+    assert_eq!(
+        validate_config(&vec![&env, a.clone(), a.clone()], 1),
+        Err(Error::InvalidSigners)
+    );
+    assert_eq!(
+        validate_config(&vec![&env, a.clone()], 2),
+        Err(Error::InvalidThreshold)
+    );
+    assert_eq!(
+        validate_config(&vec![&env, a.clone()], 0),
+        Err(Error::InvalidThreshold)
+    );
 
-    assert_eq!(
-        vault.try_init(&Vec::new(&env), &1),
-        Err(Ok(Error::InvalidSigners))
-    );
-    assert_eq!(
-        vault.try_init(&vec![&env, a.clone(), a.clone()], &1),
-        Err(Ok(Error::InvalidSigners))
-    );
-    assert_eq!(
-        vault.try_init(&vec![&env, a.clone()], &2),
-        Err(Ok(Error::InvalidThreshold))
-    );
-    assert_eq!(
-        vault.try_init(&vec![&env, a.clone()], &0),
-        Err(Ok(Error::InvalidThreshold))
-    );
+    assert_eq!(validate_config(&vec![&env, a.clone()], 1), Ok(()));
 
-    vault.init(&vec![&env, a.clone()], &1);
-    assert_eq!(
-        vault.try_init(&vec![&env, a], &1),
-        Err(Ok(Error::AlreadyInitialized))
+    // The constructor applies the same checks at deployment.
+    let vault = MultisigVaultClient::new(
+        &env,
+        &env.register(MultisigVault, (vec![&env, a.clone()], 1u32)),
     );
+    assert_eq!(vault.signers(), vec![&env, a]);
+    assert_eq!(vault.threshold(), 1);
 }
 
 #[test]
@@ -264,18 +268,31 @@ fn approvals_from_removed_signers_stop_counting() {
 fn removing_a_signer_cannot_drop_below_the_threshold() {
     let env = Env::default();
     env.mock_all_auths();
-    let vault = MultisigVaultClient::new(&env, &env.register(MultisigVault, ()));
     let a = Address::generate(&env);
     let b = Address::generate(&env);
-    vault.init(&vec![&env, a.clone(), b.clone()], &2);
-
-    let id = vault.propose(
-        &a,
-        &Action::RemoveSigner(b.clone()),
-        &(env.ledger().timestamp() + DAY),
+    let vault = MultisigVaultClient::new(
+        &env,
+        &env.register(MultisigVault, (vec![&env, a.clone(), b.clone()], 2u32)),
     );
-    vault.approve(&b, &id);
-    assert_eq!(vault.try_execute(&id), Err(Ok(Error::InvalidThreshold)));
+
+    // Rejected up front: a 2-of-2 vault can't drop to one signer.
+    assert_eq!(
+        vault.try_propose(
+            &a,
+            &Action::RemoveSigner(b.clone()),
+            &(env.ledger().timestamp() + DAY),
+        ),
+        Err(Ok(Error::InvalidThreshold))
+    );
+    // Removing someone who isn't a signer is rejected too.
+    assert_eq!(
+        vault.try_propose(
+            &a,
+            &Action::RemoveSigner(Address::generate(&env)),
+            &(env.ledger().timestamp() + DAY),
+        ),
+        Err(Ok(Error::NotSigner))
+    );
 }
 
 #[test]
@@ -313,4 +330,28 @@ fn approving_requires_the_signers_signature() {
         .propose(&s.signers[0], &Action::SetThreshold(1), &deadline(&s.env));
     s.env.set_auths(&[]);
     s.vault.approve(&s.signers[1], &id);
+}
+
+#[test]
+fn proposal_count_tracks_ids() {
+    let s = setup();
+    assert_eq!(s.vault.proposal_count(), 0);
+    s.vault
+        .propose(&s.signers[0], &Action::SetThreshold(1), &deadline(&s.env));
+    s.vault
+        .propose(&s.signers[1], &Action::SetThreshold(3), &deadline(&s.env));
+    assert_eq!(s.vault.proposal_count(), 2);
+}
+
+#[test]
+fn revoking_an_approval_emits_an_event() {
+    use soroban_sdk::testutils::Events as _;
+    let s = setup();
+    let id = s
+        .vault
+        .propose(&s.signers[0], &Action::SetThreshold(1), &deadline(&s.env));
+    s.vault.approve(&s.signers[1], &id);
+    s.vault.revoke_approval(&s.signers[1], &id);
+    assert_eq!(s.env.events().all().events().len(), 1);
+    assert_eq!(s.vault.get_proposal(&id).approvals.len(), 1);
 }

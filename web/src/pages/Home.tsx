@@ -5,13 +5,14 @@ import { fromUnits, short } from "../lib/format";
 import { Link, useTitle } from "../lib/router";
 
 export function Home() {
+  const [failed, setFailed] = useState(false);
   useTitle("Quorum Vault · M-of-N treasuries on Stellar");
   const [policy, setPolicy] = useState<{ signers: string[]; threshold: number; balance: bigint } | null>(null);
   useEffect(() => {
     const c = vault(DEMO_VAULT);
     Promise.all([c.read<string[]>("signers"), c.read<number>("threshold"), c.read<bigint>("balance", [addr(XLM_SAC)])])
       .then(([signers, threshold, balance]) => setPolicy({ signers, threshold, balance }))
-      .catch(() => {});
+      .catch(() => setFailed(true));
   }, []);
   const STATS: [string, string][] = [
     ["Demo policy", policy ? `${policy.threshold} of ${policy.signers.length}` : "…"],
@@ -37,6 +38,14 @@ export function Home() {
               </div>
             ))}
           </dl>
+          {failed && (
+            <p className="mt-6 text-sm opacity-80" role="status">
+              Couldn’t reach Stellar testnet, so live numbers aren’t shown.{" "}
+              <button className="font-semibold underline" onClick={() => window.location.reload()}>
+                Retry
+              </button>
+            </p>
+          )}
         </div>
         <div className="panel p-7">
           <p className="label">Live demo vault</p>
@@ -106,7 +115,7 @@ export function Home() {
         <div className="panel flex flex-col items-start justify-between gap-6 p-10 md:flex-row md:items-center">
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-snow">Deploy a vault for your team.</h2>
-            <p className="mt-2 text-mist">Two wallet confirmations: deploy, then set signers and threshold. No server and no sign-up.</p>
+            <p className="mt-2 text-mist">One wallet confirmation deploys the vault with its signers and threshold. No server and no sign-up.</p>
           </div>
           <Link to="/app" className="btn btn-volt inline-block shrink-0">Open the vault →</Link>
         </div>

@@ -146,7 +146,12 @@ export const accountLink = (id: string) => `${EXPLORER}/account/${id}`;
  * Deploy a new instance of an already-uploaded contract (by wasm hash) from
  * the connected wallet. Returns the new contract id.
  */
-export async function deployContract(source: string, wasmHashHex: string): Promise<{ hash: string; contractId: string }> {
+/** Deploy a contract from an uploaded wasm hash, passing constructor arguments if it has a constructor. */
+export async function deployContract(
+  source: string,
+  wasmHashHex: string,
+  constructorArgs: xdr.ScVal[] = [],
+): Promise<{ hash: string; contractId: string }> {
   const salt = new Uint8Array(32);
   crypto.getRandomValues(salt);
   const account = await server.getAccount(source);
@@ -156,6 +161,7 @@ export async function deployContract(source: string, wasmHashHex: string): Promi
         address: new Address(source),
         wasmHash: Buffer.from(wasmHashHex, "hex"),
         salt: Buffer.from(salt),
+        constructorArgs,
       }),
     )
     .setTimeout(120)

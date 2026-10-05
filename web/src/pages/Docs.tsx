@@ -1,6 +1,7 @@
 import { DEMO_VAULT } from "../vault";
 import { contractLink } from "../lib/stellar";
-import { Link, useTitle } from "../lib/router";
+import { useEffect } from "react";
+import { Link, useSection, useTitle } from "../lib/router";
 
 const SECTIONS = [
   ["start", "Getting started"],
@@ -11,23 +12,19 @@ const SECTIONS = [
 
 export function Docs() {
   useTitle("Docs · Quorum Vault");
+  const section = useSection();
+  useEffect(() => {
+    if (section) document.getElementById(section)?.scrollIntoView({ behavior: "smooth" });
+  }, [section]);
   return (
     <div className="mx-auto grid max-w-6xl gap-12 px-5 py-14 lg:grid-cols-[210px_1fr]">
       <aside className="hidden lg:block">
         <nav className="sticky top-24 space-y-1 text-sm">
           <p className="mb-3 px-3 text-xs font-semibold uppercase tracking-[0.2em] text-volt">On this page</p>
           {SECTIONS.map(([id, label]) => (
-            <a
-              key={id}
-              href="#/docs"
-              onClick={(e) => {
-                e.preventDefault();
-                document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-              }}
-              className="block rounded-lg px-3 py-2 text-mist hover:bg-panel hover:text-snow"
-            >
+            <Link key={id} to={`/docs/${id}`} className="block rounded-lg px-3 py-2 text-mist hover:bg-panel hover:text-snow">
               {label}
-            </a>
+            </Link>
           ))}
         </nav>
       </aside>
@@ -137,9 +134,9 @@ const CONCEPTS: [string, string][] = [
 
 const REFERENCE: [string, string, string][] = [
   [
-    "init(signers, threshold)",
-    "—",
-    "One-time setup of the signer set and threshold"
+    "constructor(signers, threshold)",
+    "deployer",
+    "Sets signers and threshold at deployment, in the same transaction"
   ],
   [
     "propose(proposer, action, expires_at)",
@@ -170,6 +167,11 @@ const REFERENCE: [string, string, string][] = [
     "get_proposal · signers · threshold · balance(token)",
     "—",
     "Read state"
+  ],
+  [
+    "proposal_count()",
+    "—",
+    "Number of proposals; ids run from 1 to this value"
   ]
 ];
 

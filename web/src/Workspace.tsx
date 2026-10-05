@@ -4,18 +4,22 @@ import { actionScVal, DEMO_VAULT, loadProposals, vault, VAULT_WASM_HASH, type Ac
 import { addr, contractLink, deployContract, txLink, u32, u64, XLM_SAC } from "./lib/stellar";
 import { fromUnits, short, timeLeft, toUnits } from "./lib/format";
 import { useWallet } from "./lib/useWallet";
+import { routeParams } from "./lib/router";
 import { useAction } from "./lib/useAction";
 import { xdr } from "@stellar/stellar-sdk";
 
 export type Wallet = ReturnType<typeof useWallet>;
 
 export function Workspace({ wallet }: { wallet: Wallet }) {
-  const [vaultId, setVaultId] = useState(() => new URLSearchParams(location.search).get("vault") ?? DEMO_VAULT);
+  const [vaultId, setVaultId] = useState(
+    () => routeParams().get("vault") ?? new URLSearchParams(window.location.search).get("vault") ?? DEMO_VAULT,
+  );
   const [showDeploy, setShowDeploy] = useState(false);
 
   const open = (id: string) => {
     setVaultId(id);
-    history.replaceState(null, "", `?vault=${id}`);
+    // Keep the vault in the hash route so the link can be shared and reloaded.
+    history.replaceState(null, "", `${window.location.pathname}#/app?vault=${id}`);
   };
 
   return (
@@ -23,7 +27,7 @@ export function Workspace({ wallet }: { wallet: Wallet }) {
       <header className="border-b border-edge/70">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
-            <button className="btn btn-line hidden sm:block" onClick={() => setShowDeploy((v) => !v)}>
+            <button className="btn btn-line" onClick={() => setShowDeploy((v) => !v)}>
               {showDeploy ? "Close" : "Deploy your own vault"}
             </button>
           </div>
@@ -275,7 +279,18 @@ function Composer({ client, wallet, onDone }: { client: ReturnType<typeof vault>
   const [threshold, setThreshold] = useState("2");
   const [days, setDays] = useState("7");
   const act = useAction();
-
+  const [held, setHeld] = useState<bigint | null>(null);
+  useEffect(() => {
+    setHeld(null);
+    if (!StrKey.isValidContract(token)) return;
+    client.read<bigint>("balance", [addr(token)]).then(setHeld).catch(() => setHeld(null));
+  }, [client, token]);
+  let overdraw = false;
+  try {
+    overdraw = kind === "Transfer" && held !== null && amount !== "" && toUnits(amount) > held;
+  } catch {
+    overdraw = false;
+  }
   function build(): Action {
     const valid = (a: string) => StrKey.isValidEd25519PublicKey(a) || StrKey.isValidContract(a);
     if (kind === "Transfer") {
@@ -319,6 +334,11 @@ function Composer({ client, wallet, onDone }: { client: ReturnType<typeof vault>
             <input className="field font-mono text-xs sm:col-span-2" placeholder="Recipient G… / C…" value={to} onChange={(e) => setTo(e.target.value.trim())} />
             <input className="field" placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
             <input className="field font-mono text-xs" title="Asset contract (XLM by default)" value={token} onChange={(e) => setToken(e.target.value.trim())} />
+            {overdraw && (
+              <p className="text-xs text-warn sm:col-span-2">
+                The vault holds {fromUnits(held!)} of this asset. You can still propose it, but it will only execute once the vault is funded.
+              </p>
+            )}
           </>
         )}
         {(kind === "AddSigner" || kind === "RemoveSigner") && (
@@ -358,17 +378,17 @@ function DeployVault({ wallet, onDeployed }: { wallet: Wallet; onDeployed: (id: 
             for (const s of list) if (!StrKey.isValidEd25519PublicKey(s)) throw new Error(`${short(s)} isn't a valid G… address.`);
             const t = Number(threshold);
             if (!(t >= 1 && t <= list.length)) throw new Error(`Threshold must be between 1 and ${list.length}.`);
-            const { contractId } = await deployContract(me, VAULT_WASM_HASH);
-            const r = await vault(contractId).invoke(me, "init", [xdr.ScVal.scvVec(list.map(addr)), u32(t)]);
-            setTimeout(() => onDeployed(contractId), 1500);
-            return { ...r, contractId };
+            // Signers and threshold go in as constructor arguments: one atomic step.
+            const r = await deployContract(me, VAULT_WASM_HASH, [xdr.ScVal.scvVec(list.map(addr)), u32(t)]);
+            setTimeout(() => onDeployed(r.contractId), 1500);
+            return r;
           },
           (r) => ({ text: `Vault ${short(r.contractId, 6)} deployed and initialized.`, hash: r.hash }),
         );
       }}
     >
       <h2 className="text-lg font-semibold">Deploy your own vault</h2>
-      <p className="mt-1 text-sm text-mist">Two wallet confirmations: deploy, then set signers. You're included automatically.</p>
+      <p className="mt-1 text-sm text-mist">One wallet confirmation deploys the vault with its signers and threshold. You're included automatically.</p>
       <textarea className="field mt-4 h-24 font-mono text-xs" placeholder="Other signers' G… addresses, one per line" value={signers} onChange={(e) => setSigners(e.target.value)} />
       <div className="mt-3 flex items-center gap-3">
         <label className="flex items-center gap-2 text-sm text-mist">

@@ -48,11 +48,12 @@ rotate a lost or compromised key **without redeploying or moving funds**.
 
 | Function | Who signs | Notes |
 | --- | --- | --- |
-| `init(signers, threshold)` | — | Once only |
+| constructor `(signers, threshold)` | — | Runs at deployment, so a vault is never left uninitialised |
 | `propose(proposer, action, expires_at)` | proposer (a signer) | Returns the proposal id |
 | `approve(signer, proposal_id)` | signer | |
 | `revoke_approval(signer, proposal_id)` | signer | |
 | `execute(proposal_id)` | anyone | Needs threshold approvals from current signers |
+| `proposal_count()` | — | Number of proposals; ids run from 1 to this |
 | `cancel(proposer, proposal_id)` | proposer | Pending proposals only |
 | `get_proposal`, `signers`, `threshold`, `balance(token)` | anyone | Read state |
 
@@ -68,13 +69,13 @@ Events: `("vault","proposed")`, `("vault","approved", id)`,
 
 ```bash
 cd contracts
-cargo test                    # 14 unit tests
+cargo test                    # 16 unit tests
 stellar contract build
 
+# signers and threshold are constructor arguments: deploy and setup are one step
 stellar contract deploy --wasm target/wasm32v1-none/release/multisig_vault.wasm \
-  --source me --network testnet
-stellar contract invoke --id <VAULT> --source me --network testnet -- \
-  init --signers '["G...ALICE","G...BOB","G...CAROL"]' --threshold 2
+  --source me --network testnet -- \
+  --signers '["G...ALICE","G...BOB","G...CAROL"]' --threshold 2
 ```
 
 Propose paying 500 XLM to a contractor:
@@ -89,6 +90,10 @@ stellar contract invoke --id <VAULT> --source alice --network testnet -- \
 ## Web app
 
 ![Quorum Vault web app](docs/assets/web-app.png)
+
+The site has three pages: **Home** (what it does, with live testnet data), **App** (the tool itself) and **Docs** (getting started, concepts, reference and FAQ).
+
+![quorum-vault app page](docs/assets/web-app-page.png)
 
 A treasury dashboard for any Quorum Vault, at `web/`:
 

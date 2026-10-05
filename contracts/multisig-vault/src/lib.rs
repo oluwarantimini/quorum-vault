@@ -62,6 +62,7 @@ pub enum DataKey {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
+    /// Kept for stable error codes; the vault is now set up by its constructor.
     AlreadyInitialized = 1,
     NotInitialized = 2,
     InvalidThreshold = 3,
@@ -92,6 +93,14 @@ pub struct Approved {
     pub signer: Address,
 }
 
+#[contractevent(topics = ["vault", "revoked"])]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ApprovalRevoked {
+    #[topic]
+    pub proposal_id: u64,
+    pub signer: Address,
+}
+
 #[contractevent(topics = ["vault", "executed"], data_format = "single-value")]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Executed {
@@ -113,15 +122,12 @@ pub struct MultisigVault;
 
 #[contractimpl]
 impl MultisigVault {
-    /// One-time setup with the initial signers and approval threshold.
-    pub fn init(env: Env, signers: Vec<Address>, threshold: u32) -> Result<(), Error> {
-        if env.storage().instance().has(&DataKey::Signers) {
-            return Err(Error::AlreadyInitialized);
-        }
-        validate_signers(&signers)?;
-        if threshold == 0 || threshold > signers.len() {
-            return Err(Error::InvalidThreshold);
-        }
+    /// Set the initial signers and approval threshold at deployment.
+    ///
+    /// This is a constructor so deployment and setup are one atomic step:
+    /// there is never an uninitialised vault that someone else could claim.
+    pub fn __constructor(env: Env, signers: Vec<Address>, threshold: u32) -> Result<(), Error> {
+        validate_config(&signers, threshold)?;
         env.storage().instance().set(&DataKey::Signers, &signers);
         env.storage()
             .instance()
@@ -143,10 +149,20 @@ impl MultisigVault {
         if expires_at <= env.ledger().timestamp() {
             return Err(Error::InvalidExpiry);
         }
-        if let Action::Transfer(_, _, amount) = &action {
-            if *amount <= 0 {
-                return Err(Error::InvalidAmount);
+        match &action {
+            Action::Transfer(_, _, amount) if *amount <= 0 => return Err(Error::InvalidAmount),
+            // Catch removals that could never execute (e.g. 3-of-3 -> 2
+            // signers) now, instead of after a full approval round.
+            Action::RemoveSigner(old) => {
+                let current = signers(&env)?;
+                if !current.contains(old) {
+                    return Err(Error::NotSigner);
+                }
+                if threshold(&env)? > current.len() - 1 {
+                    return Err(Error::InvalidThreshold);
+                }
             }
+            _ => {}
         }
 
         let id = next_id(&env);
@@ -192,6 +208,11 @@ impl MultisigVault {
             .ok_or(Error::NotApproved)?;
         proposal.approvals.remove(index);
         save(&env, &proposal);
+        ApprovalRevoked {
+            proposal_id,
+            signer,
+        }
+        .publish(&env);
         Ok(())
     }
 
@@ -278,9 +299,22 @@ impl MultisigVault {
         threshold(&env)
     }
 
+    /// Number of proposals ever created; ids run from 1 to this value.
+    pub fn proposal_count(env: Env) -> u64 {
+        env.storage().instance().get(&DataKey::NextId).unwrap_or(0)
+    }
+
     pub fn balance(env: Env, token: Address) -> i128 {
         token::Client::new(&env, &token).balance(&env.current_contract_address())
     }
+}
+
+fn validate_config(signers: &Vec<Address>, threshold: u32) -> Result<(), Error> {
+    validate_signers(signers)?;
+    if threshold == 0 || threshold > signers.len() {
+        return Err(Error::InvalidThreshold);
+    }
+    Ok(())
 }
 
 fn validate_signers(signers: &Vec<Address>) -> Result<(), Error> {
