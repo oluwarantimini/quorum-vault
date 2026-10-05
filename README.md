@@ -50,6 +50,7 @@ rotate a lost or compromised key **without redeploying or moving funds**.
 | --- | --- | --- |
 | constructor `(signers, threshold)` | — | Runs at deployment, so a vault is never left uninitialised |
 | `propose(proposer, action, expires_at)` | proposer (a signer) | Returns the proposal id |
+| `propose_with_memo(proposer, action, expires_at, memo)` | proposer (a signer) | Same, with a note (≤ 140 chars) co-signers see; read it with `memo(id)` |
 | `approve(signer, proposal_id)` | signer | |
 | `revoke_approval(signer, proposal_id)` | signer | |
 | `execute(proposal_id)` | anyone | Needs threshold approvals from current signers |
@@ -69,7 +70,7 @@ Events: `("vault","proposed")`, `("vault","approved", id)`,
 
 ```bash
 cd contracts
-cargo test                    # 16 unit tests
+cargo test                    # 17 unit tests
 stellar contract build
 
 # signers and threshold are constructor arguments: deploy and setup are one step

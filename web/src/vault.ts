@@ -3,7 +3,7 @@ import { addr, client, i128, u32, type Client } from "./lib/stellar";
 
 export const DEMO_VAULT = import.meta.env.VITE_VAULT_ID ?? "CDI2P43IUZ33F5HNHJO2BNEUT7FDMLVJI3BSI6XS4BXPWO3M4LYLDIVX";
 export const VAULT_WASM_HASH =
-  import.meta.env.VITE_VAULT_WASM_HASH ?? "105493fa37b90c9ae76b83c305d2e8151f2a3abd942330ae223c801113cfc1e9";
+  import.meta.env.VITE_VAULT_WASM_HASH ?? "874f742d911b5afd5880439be63db2bb8d017a098a0d51abe61fee1f73b1cce1";
 
 export const ERRORS: Record<number, string> = {
   1: "This vault is already initialized.",
@@ -60,12 +60,7 @@ const getProposal = (c: Client, id: number) =>
  * older deployments without it fall back to probing ids until the first gap.
  */
 export async function loadProposals(c: Client, batch = 10): Promise<Proposal[]> {
-  let count: number | null = null;
-  try {
-    count = Number(await c.read<bigint>("proposal_count"));
-  } catch {
-    count = null;
-  }
+  const count = await c.read<bigint>("proposal_count").then(Number, () => null);
   const out: Proposal[] = [];
   if (count !== null) {
     for (let start = 1; start <= count; start += batch) {

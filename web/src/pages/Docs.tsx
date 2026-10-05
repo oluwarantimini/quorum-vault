@@ -139,6 +139,11 @@ const REFERENCE: [string, string, string][] = [
     "Sets signers and threshold at deployment, in the same transaction"
   ],
   [
+    "propose_with_memo(proposer, action, expires_at, memo)",
+    "signer",
+    "Same as propose, with a short note for co-signers"
+  ],
+  [
     "propose(proposer, action, expires_at)",
     "signer",
     "Creates a proposal, approved by the proposer"

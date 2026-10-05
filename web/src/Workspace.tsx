@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StrKey } from "@stellar/stellar-sdk";
 import { actionScVal, DEMO_VAULT, loadProposals, vault, VAULT_WASM_HASH, type Action, type Proposal } from "./vault";
-import { addr, contractLink, deployContract, txLink, u32, u64, XLM_SAC } from "./lib/stellar";
+import { addr, contractLink, deployContract, str, txLink, u32, u64, XLM_SAC } from "./lib/stellar";
 import { fromUnits, short, timeLeft, toUnits } from "./lib/format";
 import { useWallet } from "./lib/useWallet";
 import { routeParams } from "./lib/router";
@@ -34,11 +34,11 @@ export function Workspace({ wallet }: { wallet: Wallet }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-6 px-5 py-8">
+      <div className="mx-auto max-w-6xl space-y-6 px-5 py-8">
         {showDeploy && <DeployVault wallet={wallet} onDeployed={(id) => (open(id), setShowDeploy(false))} />}
         <VaultPicker current={vaultId} onOpen={open} />
         <VaultView key={vaultId} vaultId={vaultId} wallet={wallet} />
-      </main>
+      </div>
 
     </div>
   );
@@ -207,6 +207,10 @@ function ProposalCard({
   isSigner: boolean;
 }) {
   const act = useAction();
+  const [memo, setMemo] = useState<string | null>(null);
+  useEffect(() => {
+    v.c.read<string | null>("memo", [u64(p.id)]).then((m) => setMemo(m ?? null), () => setMemo(null));
+  }, [v.c, p.id]);
   const valid = p.approvals.filter((a) => v.signers.includes(a)).length;
   const expired = Number(p.expires_at) * 1000 < Date.now();
   const pending = p.status === 0 && !expired;
@@ -226,6 +230,7 @@ function ProposalCard({
         <div>
           <p className="font-mono text-xs text-mist">#{String(p.id)} · by {short(p.proposer, 5)}</p>
           <h3 className="mt-1 text-base font-semibold">{describe(p.action)}</h3>
+          {memo && <p className="mt-1 text-sm text-mist">“{memo}”</p>}
         </div>
         <span className={`text-xs font-bold uppercase tracking-wider ${status[1]}`}>{status[0]}</span>
       </div>
@@ -278,6 +283,12 @@ function Composer({ client, wallet, onDone }: { client: ReturnType<typeof vault>
   const [who, setWho] = useState("");
   const [threshold, setThreshold] = useState("2");
   const [days, setDays] = useState("7");
+  const [note, setNote] = useState("");
+  // Vaults from the memo build answer memo(); older ones don't have it.
+  const [memos, setMemos] = useState(false);
+  useEffect(() => {
+    client.read("memo", [u64(0n)]).then(() => setMemos(true), () => setMemos(false));
+  }, [client]);
   const act = useAction();
   const [held, setHeld] = useState<bigint | null>(null);
   useEffect(() => {
@@ -285,12 +296,13 @@ function Composer({ client, wallet, onDone }: { client: ReturnType<typeof vault>
     if (!StrKey.isValidContract(token)) return;
     client.read<bigint>("balance", [addr(token)]).then(setHeld).catch(() => setHeld(null));
   }, [client, token]);
-  let overdraw = false;
-  try {
-    overdraw = kind === "Transfer" && held !== null && amount !== "" && toUnits(amount) > held;
-  } catch {
-    overdraw = false;
-  }
+  const overdraw = (() => {
+    try {
+      return kind === "Transfer" && held !== null && amount !== "" && toUnits(amount) > held;
+    } catch {
+      return false;
+    }
+  })();
   function build(): Action {
     const valid = (a: string) => StrKey.isValidEd25519PublicKey(a) || StrKey.isValidContract(a);
     if (kind === "Transfer") {
@@ -312,7 +324,11 @@ function Composer({ client, wallet, onDone }: { client: ReturnType<typeof vault>
           async () => {
             const action = build();
             const expires = BigInt(Math.floor(Date.now() / 1000) + Number(days) * 86_400);
-            const r = await client.invoke<bigint>(wallet.address!, "propose", [addr(wallet.address!), actionScVal(action), u64(expires)]);
+            const args = [addr(wallet.address!), actionScVal(action), u64(expires)];
+            const r =
+              memos && note.trim()
+                ? await client.invoke<bigint>(wallet.address!, "propose_with_memo", [...args, str(note.trim())])
+                : await client.invoke<bigint>(wallet.address!, "propose", args);
             onDone();
             return r;
           },
@@ -345,6 +361,15 @@ function Composer({ client, wallet, onDone }: { client: ReturnType<typeof vault>
           <input className="field font-mono text-xs sm:col-span-2" placeholder="Signer address G…" value={who} onChange={(e) => setWho(e.target.value.trim())} />
         )}
         {kind === "SetThreshold" && <input className="field" type="number" min="1" value={threshold} onChange={(e) => setThreshold(e.target.value)} />}
+        {memos && (
+          <input
+            className="field sm:col-span-2"
+            maxLength={140}
+            placeholder="Why? (optional, shown to co-signers: invoice no., payee, reason)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        )}
         <label className="flex items-center gap-2 text-sm text-mist">
           Expires in
           <input className="field w-20" type="number" min="1" value={days} onChange={(e) => setDays(e.target.value)} /> days
