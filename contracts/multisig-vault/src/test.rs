@@ -355,3 +355,31 @@ fn revoking_an_approval_emits_an_event() {
     assert_eq!(s.env.events().all().events().len(), 1);
     assert_eq!(s.vault.get_proposal(&id).approvals.len(), 1);
 }
+
+#[test]
+fn proposals_can_carry_a_memo() {
+    let s = setup();
+    let note = soroban_sdk::String::from_str(&s.env, "Invoice #2041, Acme design work");
+    let id = s.vault.propose_with_memo(
+        &s.signers[0],
+        &Action::SetThreshold(1),
+        &deadline(&s.env),
+        &note,
+    );
+    assert_eq!(s.vault.memo(&id), Some(note));
+    let plain = s
+        .vault
+        .propose(&s.signers[0], &Action::SetThreshold(1), &deadline(&s.env));
+    assert_eq!(s.vault.memo(&plain), None);
+
+    let long = soroban_sdk::String::from_str(&s.env, &"x".repeat(141));
+    assert_eq!(
+        s.vault.try_propose_with_memo(
+            &s.signers[0],
+            &Action::SetThreshold(1),
+            &deadline(&s.env),
+            &long
+        ),
+        Err(Ok(Error::MemoTooLong))
+    );
+}

@@ -15,7 +15,8 @@
 //! hole.
 
 use soroban_sdk::{
-    contract, contracterror, contractevent, contractimpl, contracttype, token, Address, Env, Vec,
+    contract, contracterror, contractevent, contractimpl, contracttype, token, Address, Env,
+    String, Vec,
 };
 
 pub const MAX_SIGNERS: u32 = 20;
@@ -56,6 +57,8 @@ pub enum DataKey {
     Threshold,
     NextId,
     Proposal(u64),
+    /// Optional note explaining a proposal (invoice number, payee, reason).
+    Memo(u64),
 }
 
 #[contracterror]
@@ -77,6 +80,7 @@ pub enum Error {
     InvalidAmount = 12,
     InvalidExpiry = 13,
     NotProposer = 14,
+    MemoTooLong = 15,
 }
 
 #[contractevent(topics = ["vault", "proposed"], data_format = "single-value")]
@@ -112,6 +116,9 @@ pub struct Executed {
 pub struct Cancelled {
     pub proposal_id: u64,
 }
+
+/// Longest proposal memo accepted.
+pub const MAX_MEMO_LEN: u32 = 140;
 
 const DAY_IN_LEDGERS: u32 = 17_280;
 const BUMP_THRESHOLD: u32 = 30 * DAY_IN_LEDGERS;
@@ -179,6 +186,30 @@ impl MultisigVault {
         save(&env, &proposal);
         Proposed { proposal_id: id }.publish(&env);
         Ok(id)
+    }
+
+    /// Like `propose`, with a short note co-signers see next to the action.
+    pub fn propose_with_memo(
+        env: Env,
+        proposer: Address,
+        action: Action,
+        expires_at: u64,
+        memo: String,
+    ) -> Result<u64, Error> {
+        if memo.len() > MAX_MEMO_LEN {
+            return Err(Error::MemoTooLong);
+        }
+        let id = Self::propose(env.clone(), proposer, action, expires_at)?;
+        let key = DataKey::Memo(id);
+        env.storage().persistent().set(&key, &memo);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, BUMP_THRESHOLD, BUMP_TO);
+        Ok(id)
+    }
+
+    pub fn memo(env: Env, proposal_id: u64) -> Option<String> {
+        env.storage().persistent().get(&DataKey::Memo(proposal_id))
     }
 
     pub fn approve(env: Env, signer: Address, proposal_id: u64) -> Result<(), Error> {
