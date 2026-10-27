@@ -176,3 +176,4 @@ const PROMISES: [string, string][] = [
     "Adding or removing signers and changing the threshold go through the same approval flow as moving money."
   ]
 ];
+// Landing page
