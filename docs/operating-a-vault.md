@@ -27,3 +27,7 @@ that sits around for a long time is a liability.
 
 Send any Stellar asset to the vault's contract address. `balance(token)`
 reports the holdings for each asset.
+
+## Troubleshooting
+
+See [README.md](../README.md) for common issues.
