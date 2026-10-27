@@ -206,3 +206,4 @@ const FAQ: [string, string][] = [
     "Not yet. It runs on Stellar testnet and is open source; treat it as a working prototype until it has been audited."
   ]
 ];
+// Documentation page
