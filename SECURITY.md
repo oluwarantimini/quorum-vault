@@ -23,3 +23,7 @@ Anything in this repository, especially signer and threshold handling, approval 
 
 Only the latest commit on `main` is supported. There are no tagged
 releases yet, so fixes land on `main`.
+
+## Scope
+
+This policy covers the smart contract and TypeScript client only.
