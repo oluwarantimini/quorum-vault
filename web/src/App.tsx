@@ -19,3 +19,4 @@ export default function App() {
     </Shell>
   );
 }
+// Root app component — routes to Home, Workspace, or Docs
