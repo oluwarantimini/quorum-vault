@@ -429,3 +429,4 @@ function DeployVault({ wallet, onDeployed }: { wallet: Wallet; onDeployed: (id: 
     </form>
   );
 }
+// Main vault interaction workspace
