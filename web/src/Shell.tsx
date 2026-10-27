@@ -122,3 +122,4 @@ export function NotFound() {
     </section>
   );
 }
+// Shell wraps every page with the nav and footer
