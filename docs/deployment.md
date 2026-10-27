@@ -14,3 +14,7 @@ Deployed 2026-10-04. Native XLM's asset contract on testnet is
 
 The demo vault was deployed from the earlier build (separate `init` call). New vaults
 created from the web app use the constructor build above.
+
+## Next steps
+
+See [operating-a-vault.md](operating-a-vault.md) for post-deployment guidance.
