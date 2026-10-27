@@ -16,3 +16,10 @@ All notable changes to this project are documented here. The format follows
 ### Added
 
 - Initial release of Quorum Vault: an M-of-N multisig treasury contract for Stellar teams and DAOs.
+
+## [Unreleased]
+
+## [0.1.0] - 2025-01-01
+
+### Added
+- Initial multisig vault contract
