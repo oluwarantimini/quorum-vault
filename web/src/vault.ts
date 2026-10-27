@@ -5,6 +5,7 @@ export const DEMO_VAULT = import.meta.env.VITE_VAULT_ID ?? "CDI2P43IUZ33F5HNHJO2
 export const VAULT_WASM_HASH =
   import.meta.env.VITE_VAULT_WASM_HASH ?? "874f742d911b5afd5880439be63db2bb8d017a098a0d51abe61fee1f73b1cce1";
 
+// See ERRORS for human-readable error messages
 export const ERRORS: Record<number, string> = {
   1: "This vault is already initialized.",
   2: "This contract isn't an initialized vault.",
