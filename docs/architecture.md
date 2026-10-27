@@ -35,3 +35,5 @@ proposals stop counting. A naive approval counter can't do that.
 
 A failing check returns an error and Soroban rolls back the whole call, so
 a proposal can't half-execute.
+
+<!-- TODO: add Mermaid diagram -->
