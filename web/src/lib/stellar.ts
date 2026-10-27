@@ -1,3 +1,4 @@
+// Freighter wallet integration
 import {
   getAddress,
   getNetworkDetails,
