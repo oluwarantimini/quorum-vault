@@ -39,3 +39,4 @@ body {
   .btn-fail { border: 1px solid #ff6b6b66; color: var(--color-fail); }
   .label { font-size: 0.7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--color-mist); }
 }
+/* Global styles */
