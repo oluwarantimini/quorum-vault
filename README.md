@@ -139,3 +139,5 @@ another deployment with `VITE_CONTRACT_ID` (see `web/.env.example`).
 ## License
 
 MIT
+
+<!-- TODO: add table of contents -->
